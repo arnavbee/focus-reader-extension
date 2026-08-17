@@ -275,3 +275,19 @@ body, html {
     filter: blur(0);
   }
 }
+
+/* ── Live teleprompter sweep (autoplay) ───────────────────── */
+.w {
+  transition: color 0.14s linear, text-shadow 0.14s linear;
+}
+.w.unread {
+  color: #26262c;
+  text-shadow: none;
+}
+.w.read {
+  color: #ffffff;
+}
+.w.now {
+  color: #ffffff;
+  text-shadow: 0 0 26px rgba(255, 255, 255, 0.35);
+}

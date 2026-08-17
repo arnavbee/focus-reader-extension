@@ -31,11 +31,38 @@ function clearTimerBar() {
   bar.style.width = '0%';
 }
 
+// ── Live teleprompter sweep ─────────────────────────────────
+let sweepTimer = null;
+
+function clearSweep() {
+  if (sweepTimer) { clearInterval(sweepTimer); sweepTimer = null; }
+  document.querySelectorAll('.w').forEach(w => w.classList.remove('unread', 'read', 'now'));
+}
+
+// Lights the current slide's words one at a time, in sync with the
+// slide's autoplay duration; read words stay lit.
+function startSweep(duration) {
+  clearSweep();
+  const ws = [...document.querySelectorAll('#slide-text .w')];
+  if (!ws.length) return;
+  ws.forEach(w => w.classList.add('unread'));
+  let k = 0;
+  sweepTimer = setInterval(() => {
+    if (k > 0) { ws[k - 1].classList.remove('now'); ws[k - 1].classList.add('read'); }
+    if (k >= ws.length) { clearInterval(sweepTimer); sweepTimer = null; return; }
+    ws[k].classList.remove('unread');
+    ws[k].classList.add('now');
+    k++;
+  }, duration / ws.length);
+}
+
 function scheduleNextSlide() {
   if (!isPlaying) return;
   const slide = slides[currentIndex];
   const delay = getSlideDelay(slide?.text || '');
   animateTimerBar(delay);
+  if (slide?.type === 'image') clearSweep();
+  else startSweep(delay);
   autoplayTimer = setTimeout(() => {
     if (!isPlaying) return;
     if (currentIndex >= slides.length - 1) {
@@ -58,6 +85,7 @@ function stopAutoplay() {
   isPlaying = false;
   if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
   clearTimerBar();
+  clearSweep();
   updatePlayBtn();
 }
 
@@ -279,7 +307,19 @@ function renderSlide(direction = "next") {
   textEl.style.display = "";
   imgEl.style.display = "none";
   captionEl.style.display = "none";
-  textEl.innerText = slide.text;
+  // Words are wrapped in spans so the autoplay sweep can light them up live
+  textEl.textContent = "";
+  (slide.text || "").split(/(\s+)/).forEach(tok => {
+    if (!tok) return;
+    if (/^\s+$/.test(tok)) {
+      textEl.appendChild(document.createTextNode(tok));
+    } else {
+      const s = document.createElement("span");
+      s.className = "w";
+      s.textContent = tok;
+      textEl.appendChild(s);
+    }
+  });
   
   // Paragraph size styles
   let typeClass = "";
