@@ -8,6 +8,7 @@
   --fr-fg: #e4e4e7;
   --fr-fg-strong: #ffffff;
   --fr-unread: #46464e;      /* words not reached yet */
+  --fr-read: #9a9aa3;        /* words already passed */
   --fr-quote: #a1a1aa;
   --fr-rule: #27272a;
   --fr-muted: #3f3f46;
@@ -23,6 +24,7 @@
   --fr-fg: #16130f;
   --fr-fg-strong: #0b0906;
   --fr-unread: #c2beb6;
+  --fr-read: #5c564e;
   --fr-quote: #5a544b;
   --fr-rule: #ddd8cf;
   --fr-muted: #a8a29a;
@@ -110,7 +112,9 @@ body, html {
    the whole slide returns to full contrast.
    ------------------------------------------------------------ */
 .slide-text .w {
-  transition: color 0.22s ease, opacity 0.22s ease;
+  /* Must settle faster than one word's dwell (171ms at the default 350wpm),
+     or every word is still mid-fade when the next lights and the sweep smears. */
+  transition: color 0.08s linear;
 }
 
 .slide-text.reading .w {
@@ -118,7 +122,7 @@ body, html {
 }
 
 .slide-text.reading .w.read {
-  color: var(--fr-fg);
+  color: var(--fr-read);
 }
 
 .slide-text.reading.text-h1 .w.read,
@@ -128,6 +132,13 @@ body, html {
 
 .slide-text.reading.text-blockquote .w.read {
   color: var(--fr-quote);
+}
+
+/* The travelling focal point. Declared last so it beats every type variant:
+   a growing block of solid ink reads as chunky, a single moving word reads
+   as a teleprompter. */
+.slide-text.reading .w.now {
+  color: var(--fr-fg-strong);
 }
 
 .text-h1 {
@@ -205,14 +216,17 @@ body, html {
   line-height: 1.3;
 }
 
-/* The sheet runs wider and closer to the edges than the dark reading room,
-   because the type is sized to fill it rather than sit at a fixed scale. */
+/* The sheet is full bleed: no column cap and only enough gutter to keep
+   descenders off the glass. The dark room keeps its 800px measure, because
+   its type sits at a fixed scale and would run to unreadable line lengths;
+   paper solves its own size against the height, so a wider box just buys
+   more words per line instead of a longer eye travel at the same size. */
 :root[data-theme="paper"] .viewport {
-  padding: 0 5vw;
+  padding: 0 3vw;
 }
 
 :root[data-theme="paper"] .slide-container {
-  max-width: 1180px;
+  max-width: none;
   padding: 40px 0;
 }
 

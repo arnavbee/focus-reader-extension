@@ -71,7 +71,10 @@ function fitText() {
   let lo = 18;
   let hi = fitCeiling(textEl);
   let best = lo;
-  for (let i = 0; i < 9; i++) {
+  // Each pass is a forced synchronous reflow of a very large text node, and
+  // this runs on every slide change. Seven passes lands inside 1px of the
+  // answer, which is all the trailing Math.floor keeps anyway.
+  for (let i = 0; i < 7; i++) {
     const mid = (lo + hi) / 2;
     textEl.style.fontSize = mid + "px";
     if (textEl.scrollHeight <= avail) { best = mid; lo = mid; } else { hi = mid; }
@@ -152,7 +155,8 @@ function stepWord() {
     return;
   }
   const el = wordEls[wordIndex];
-  el.classList.add('read');
+  if (wordIndex > 0) wordEls[wordIndex - 1].classList.remove('now');
+  el.classList.add('read', 'now');
   wordIndex++;
   wordTimer = setTimeout(stepWord, wordDelay(el.textContent));
 }
