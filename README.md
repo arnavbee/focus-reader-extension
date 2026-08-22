@@ -2,11 +2,16 @@
 
 **Turn any article into a full-screen deck of single thoughts — and let it read itself to you.**
 
-Focus Reader is a Chrome extension (Manifest V3, no build step, no dependencies) that pulls the article out of a cluttered web page and re-renders it in its own tab as slides: one thought at a time, dead-center on black, nothing else on screen. Step through with a click or a key — or press `P` and it plays itself like a teleprompter at your chosen words-per-minute.
+Focus Reader is a Chrome extension (Manifest V3, no build step, no dependencies) that pulls the article out of a cluttered web page and re-renders it in its own tab as slides: one thought at a time, nothing else on screen, on either a black reading room or a warm paper sheet. Step through with a click or a key — or press `P` and it plays itself like a teleprompter at your chosen words-per-minute.
 
 No ads. No popups. No servers. The extension makes **zero network requests** — everything happens locally in your browser.
 
 ![A single thought centered on a black screen](screenshot.jpg)
+
+The paper theme, mid read-along. Type is solved to fill the sheet, the sheet runs
+full bleed, and the line carries three tones at once: passed, current, still ahead.
+
+![The paper theme reading itself, with one word carrying full ink and the rest of the line pale](screenshot-paper.jpg)
 
 ## Why
 
