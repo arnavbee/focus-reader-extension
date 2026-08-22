@@ -14,9 +14,10 @@ Reader modes (Safari Reader, Chrome Reading Mode) clean up the clutter, but they
 
 ## Features
 
-- **Read-along highlight**: during autoplay the slide does not sit still. Words darken one at a time at your WPM, so your eye is pulled along the line instead of scanning a static block and losing its place. Unread words stay dimmed; pausing reveals the whole slide at full contrast. Toggle with `R`.
+- **Read-along highlight**: during autoplay the slide does not sit still. The line carries three tones at once, so what your eye tracks is a single travelling marker rather than the edge of a growing block: words ahead sit pale, the word being spoken carries full ink, and words already passed settle back to a middle tone. The step is deliberately faster than one word's dwell, so each word lands crisply instead of smearing into the next. Pausing reveals the whole slide at full contrast. Toggle with `R`.
 - **Two themes**: the original black reading room, and **paper**, a warm off-white sheet, serif throughout, left-aligned like a page. Toggle with `T`. Theme, read-along and WPM persist between sessions.
 - **Type that fills the sheet** (paper theme): instead of a fixed scale, each slide's font size is solved by binary search to the largest that still fits the viewport, so a short line lands as a poster and a dense passage steps down only as far as it has to. Re-solves on window resize. The dark theme keeps its original fixed scale.
+- **Full-bleed sheet** (paper theme): paper runs edge to edge with only a thin gutter, no column cap, which buys more words per line and a longer sweep for the read-along to travel. The dark room deliberately keeps its 800px measure, because its type sits at a fixed scale and a full-bleed line at that size would be a punishing distance for the eye to return from.
 - **One thought per slide** — text is chunked into ~200-character slides on sentence boundaries, so each slide is a complete thought, never a truncated fragment.
 - **Autoplay teleprompter** — press `P` or hit the play button. Slide duration is computed from word count ÷ your WPM setting (150–700, slider in the control bar, default 350). A timer bar along the bottom shows when the next slide arrives. Short slides are clamped to a 1.2s minimum so a three-word slide doesn't blink past.
 - **Dynamic type scaling** — short punchy fragments render extra large; dense passages step down so they never wrap awkwardly. Headings and blockquotes keep their own hierarchy.
@@ -79,9 +80,10 @@ focus.html opens in its own sandboxed tab
   wraps every word in its own span
   renders one slide at a time, lighting words at word-duration = 60000/wpm
   (long words cost more, punctuation buys a breath)
+  each word moves pale → full ink → settled as the marker passes over it
 ```
 
-Five files, ~900 lines total:
+Six files, ~1,300 lines total:
 
 | File | Role |
 |---|---|
