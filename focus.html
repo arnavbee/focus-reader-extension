@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="dark">
 <head>
   <meta charset="utf-8">
   <title>Focus Reader</title>
   <link rel="icon" type="image/png" href="icon16.png">
   <link rel="stylesheet" href="focus.css">
 </head>
-<body>
+<body data-theme="dark">
   <div id="viewport" class="viewport">
     <div id="slide-container" class="slide-container">
       <div id="slide-text" class="slide-text">Loading...</div>
       <img id="slide-img" class="slide-img" src="" alt="" />
       <figcaption id="slide-caption" class="slide-caption"></figcaption>
     </div>
-    
+
     <!-- Controls bar -->
     <div class="controls font-mono">
       <span id="progress">0 / 0</span>
@@ -21,13 +21,15 @@
       <!-- Teleprompter controls (center) -->
       <div class="playback-controls">
         <button id="play-btn" class="play-btn" title="Autoplay (P)">▶</button>
+        <button id="read-btn" class="play-btn" title="Read-along (R)">≡</button>
+        <button id="theme-btn" class="play-btn" title="Theme (T)">◑</button>
         <div class="speed-wrap" id="speed-wrap">
           <input type="range" id="speed-slider" min="150" max="700" step="25" value="350" />
           <span id="wpm-label">350 wpm</span>
         </div>
       </div>
 
-      <span class="shortcuts">←/→ Navigate · Esc Exit</span>
+      <span class="shortcuts">←/→ Navigate · P Play · R Read-along · T Theme · Esc Exit</span>
     </div>
 
     <!-- Slide timing bar: fills during autoplay to show when next slide arrives -->

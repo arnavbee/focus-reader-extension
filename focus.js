@@ -9,6 +9,109 @@ let isPlaying = false;
 let autoplayTimer = null;
 let wpm = 350;
 
+// ── Read-along state ────────────────────────────────────────
+// Read-along darkens one word at a time at the current WPM instead of
+// swapping the whole slide at once. Unread words sit dimmed; the word
+// you are on and everything behind it is at full contrast.
+let readAlong = true;
+let theme = "dark";
+let wordEls = [];
+let wordIndex = 0;
+let wordTimer = null;
+
+function saveSettings() {
+  try {
+    chrome.storage.local.set({ frSettings: { readAlong, theme, wpm } });
+  } catch (_) { /* storage unavailable, settings just will not persist */ }
+}
+
+function applyTheme() {
+  document.documentElement.dataset.theme = theme;
+  document.body.dataset.theme = theme;
+  const btn = document.getElementById("theme-btn");
+  if (btn) btn.textContent = theme === "paper" ? "◐" : "◑";
+  fitText();
+}
+
+// ── Fill-the-sheet type ──────────────────────────────────────
+// Paper theme sets type as large as the slide will allow rather than at a
+// fixed scale, so a short line lands like the poster it is and a dense one
+// steps down only as far as it has to. Binary search on font size, nine
+// passes, which settles well inside a frame.
+const FIT_CEILING = {
+  "text-h1": 132,
+  "text-h2": 120,
+  "text-h3": 104,
+  "text-xlarge": 128,
+  "text-medium": 112,
+  "text-small": 84,
+  "text-blockquote": 76
+};
+
+function fitCeiling(textEl) {
+  for (const cls in FIT_CEILING) {
+    if (textEl.classList.contains(cls)) return FIT_CEILING[cls];
+  }
+  return 96;
+}
+
+function fitText() {
+  const textEl = document.getElementById("slide-text");
+  const containerEl = document.getElementById("slide-container");
+  if (!textEl || !containerEl) return;
+
+  if (theme !== "paper" || textEl.style.display === "none") {
+    textEl.style.fontSize = "";
+    return;
+  }
+
+  const avail = containerEl.clientHeight - 80; // container's 40px top/bottom padding
+  if (avail <= 0) return;
+
+  let lo = 18;
+  let hi = fitCeiling(textEl);
+  let best = lo;
+  for (let i = 0; i < 9; i++) {
+    const mid = (lo + hi) / 2;
+    textEl.style.fontSize = mid + "px";
+    if (textEl.scrollHeight <= avail) { best = mid; lo = mid; } else { hi = mid; }
+  }
+  textEl.style.fontSize = Math.floor(best) + "px";
+}
+
+function updateReadAlongBtn() {
+  const btn = document.getElementById("read-btn");
+  if (!btn) return;
+  btn.classList.toggle("active", readAlong);
+  btn.title = readAlong ? "Read-along on (R)" : "Read-along off (R)";
+}
+
+// Per-word dwell time. Base is one word at the chosen WPM, then long words
+// get a little more and punctuation buys a breath, which is what stops the
+// highlight feeling metronomic.
+function wordDelay(word) {
+  const base = 60000 / wpm;
+  let d = base;
+  if (word.length > 7) d *= 1.25;
+  if (word.length > 12) d *= 1.15;
+  if (/[,;:)—–]["'”’)\]]?$/.test(word)) d += base * 0.45;
+  if (/[.!?]["'”’)\]]?$/.test(word)) d += base * 0.8;
+  return Math.max(70, d);
+}
+
+function slideWordsDuration() {
+  if (wordEls.length === 0) return 0;
+  let total = 0;
+  for (const el of wordEls) total += wordDelay(el.textContent);
+  return total + tailDwell();
+}
+
+// A beat at the end of a slide so the last word is actually seen before the
+// deck moves on.
+function tailDwell() {
+  return Math.max(260, (60000 / wpm) * 1.5);
+}
+
 function getSlideDelay(text) {
   const words = (text || '').split(/\s+/).filter(w => w.length > 0).length || 5;
   return Math.max(1200, Math.round((words / wpm) * 60000));
@@ -31,47 +134,54 @@ function clearTimerBar() {
   bar.style.width = '0%';
 }
 
-// ── Live teleprompter sweep ─────────────────────────────────
-let sweepTimer = null;
-
-function clearSweep() {
-  if (sweepTimer) { clearInterval(sweepTimer); sweepTimer = null; }
-  document.querySelectorAll('.w').forEach(w => w.classList.remove('unread', 'read', 'now'));
+function advanceOrStop() {
+  if (currentIndex >= slides.length - 1) {
+    stopAutoplay();
+    return;
+  }
+  currentIndex++;
+  renderSlide('next');
+  scheduleNextSlide();
 }
 
-// Lights the current slide's words one at a time, in sync with the
-// slide's autoplay duration; read words stay lit.
-function startSweep(duration) {
-  clearSweep();
-  const ws = [...document.querySelectorAll('#slide-text .w')];
-  if (!ws.length) return;
-  ws.forEach(w => w.classList.add('unread'));
-  let k = 0;
-  sweepTimer = setInterval(() => {
-    if (k > 0) { ws[k - 1].classList.remove('now'); ws[k - 1].classList.add('read'); }
-    if (k >= ws.length) { clearInterval(sweepTimer); sweepTimer = null; return; }
-    ws[k].classList.remove('unread');
-    ws[k].classList.add('now');
-    k++;
-  }, duration / ws.length);
+// Word-by-word walk through the current slide.
+function stepWord() {
+  if (!isPlaying || !readAlong) return;
+  if (wordIndex >= wordEls.length) {
+    wordTimer = setTimeout(() => { if (isPlaying) advanceOrStop(); }, tailDwell());
+    return;
+  }
+  const el = wordEls[wordIndex];
+  el.classList.add('read');
+  wordIndex++;
+  wordTimer = setTimeout(stepWord, wordDelay(el.textContent));
+}
+
+function clearWordTimer() {
+  if (wordTimer) { clearTimeout(wordTimer); wordTimer = null; }
 }
 
 function scheduleNextSlide() {
   if (!isPlaying) return;
+  clearWordTimer();
+
   const slide = slides[currentIndex];
+
+  // Read-along handles its own advance once the last word has been lit.
+  if (readAlong && wordEls.length > 0) {
+    const textEl = document.getElementById('slide-text');
+    if (textEl) textEl.classList.add('reading');
+    const remaining = wordEls.slice(wordIndex).reduce((t, el) => t + wordDelay(el.textContent), 0);
+    animateTimerBar(remaining + tailDwell());
+    stepWord();
+    return;
+  }
+
   const delay = getSlideDelay(slide?.text || '');
   animateTimerBar(delay);
-  if (slide?.type === 'image') clearSweep();
-  else startSweep(delay);
   autoplayTimer = setTimeout(() => {
     if (!isPlaying) return;
-    if (currentIndex >= slides.length - 1) {
-      stopAutoplay();
-      return;
-    }
-    currentIndex++;
-    renderSlide('next');
-    scheduleNextSlide();
+    advanceOrStop();
   }, delay);
 }
 
@@ -84,13 +194,39 @@ function startAutoplay() {
 function stopAutoplay() {
   isPlaying = false;
   if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
+  clearWordTimer();
   clearTimerBar();
-  clearSweep();
+  revealAllWords();
   updatePlayBtn();
+}
+
+// Pausing shows the whole slide. Half a paragraph in ghost grey is useless
+// to read from, and the word position is kept so resuming picks up cleanly.
+function revealAllWords() {
+  const textEl = document.getElementById('slide-text');
+  if (textEl) textEl.classList.remove('reading');
 }
 
 function toggleAutoplay() {
   isPlaying ? stopAutoplay() : startAutoplay();
+}
+
+function toggleReadAlong() {
+  readAlong = !readAlong;
+  updateReadAlongBtn();
+  saveSettings();
+  if (isPlaying) {
+    clearWordTimer();
+    if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
+    if (!readAlong) revealAllWords();
+    scheduleNextSlide();
+  }
+}
+
+function toggleTheme() {
+  theme = theme === "paper" ? "dark" : "paper";
+  applyTheme();
+  saveSettings();
 }
 
 function updatePlayBtn() {
@@ -104,6 +240,7 @@ function resetAutoplayTimer() {
   // Called on manual navigation while autoplay is active — restart the timer for the new slide
   if (!isPlaying) return;
   if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
+  clearWordTimer();
   scheduleNextSlide();
 }
 // ─────────────────────────────────────────────────────────────
@@ -158,7 +295,7 @@ function chunkText(text, maxChars = 200) {
       currentChunk = currentChunk ? `${currentChunk} ${sentence}` : sentence;
     } else {
       if (currentChunk) chunks.push(currentChunk);
-      
+
       // If a single sentence is longer than maxChars, chunk it by words
       if (sentence.length > maxChars) {
         const words = sentence.split(/\s+/);
@@ -181,20 +318,50 @@ function chunkText(text, maxChars = 200) {
   return chunks;
 }
 
+// Rebuild the slide as individual word spans, keeping the original
+// whitespace as text nodes so pre-wrap blockquotes keep their line breaks.
+function buildWords(container, text) {
+  container.textContent = "";
+  wordEls = [];
+  const parts = String(text == null ? "" : text).split(/(\s+)/);
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\s+$/.test(part)) {
+      container.appendChild(document.createTextNode(part));
+    } else {
+      const span = document.createElement("span");
+      span.className = "w";
+      span.textContent = part;
+      container.appendChild(span);
+      wordEls.push(span);
+    }
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  chrome.storage.local.get("activeArticle", (data) => {
+  chrome.storage.local.get(["activeArticle", "frSettings"], (data) => {
+    const s = data.frSettings;
+    if (s) {
+      if (typeof s.readAlong === "boolean") readAlong = s.readAlong;
+      if (s.theme === "paper" || s.theme === "dark") theme = s.theme;
+      if (typeof s.wpm === "number") wpm = s.wpm;
+    }
+    applyTheme();
+    updateReadAlongBtn();
+
+    const slider = document.getElementById("speed-slider");
+    const wpmLabel = document.getElementById("wpm-label");
+    if (slider) slider.value = String(wpm);
+    if (wpmLabel) wpmLabel.textContent = `${wpm} wpm`;
+
     if (data.activeArticle) {
-      console.log("Focus Reader Debug - Loaded Article Data:", data.activeArticle);
-      if (data.activeArticle.items) {
-        console.table(data.activeArticle.items);
-      }
       const { title, items, paragraphs } = data.activeArticle;
-      
+
       // Match document title with the original article title
       if (title) {
         document.title = title;
       }
-      
+
       // Start with title slide
       slides = [{ type: "h1", text: title }];
 
@@ -240,6 +407,7 @@ document.addEventListener("DOMContentLoaded", () => {
     startY = e.clientY;
   });
   document.addEventListener("keydown", handleKey);
+  window.addEventListener("resize", fitText);
   document.addEventListener("click", handleClick);
 
   // Play button click
@@ -248,15 +416,27 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleAutoplay();
   });
 
+  document.getElementById("read-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleReadAlong();
+  });
+
+  document.getElementById("theme-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleTheme();
+  });
+
   // Speed slider
   const slider = document.getElementById("speed-slider");
   const wpmLabel = document.getElementById("wpm-label");
   slider?.addEventListener("input", () => {
     wpm = parseInt(slider.value, 10);
     wpmLabel.textContent = `${wpm} wpm`;
+    saveSettings();
     // If playing, restart timer with new speed for current slide
     if (isPlaying) {
       if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
+      clearWordTimer();
       scheduleNextSlide();
     }
   });
@@ -264,7 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function renderSlide(direction = "next") {
   if (slides.length === 0) return;
-  
+
   const textEl = document.getElementById("slide-text");
   const imgEl = document.getElementById("slide-img");
   const captionEl = document.getElementById("slide-caption");
@@ -273,8 +453,13 @@ function renderSlide(direction = "next") {
 
   const slide = slides[currentIndex];
 
+  // Every new slide starts unread
+  clearWordTimer();
+  wordIndex = 0;
+
   // Toggle between image mode and text mode
   if (slide.type === "image") {
+    wordEls = [];
     textEl.style.display = "none";
     captionEl.style.display = "none";
 
@@ -307,20 +492,8 @@ function renderSlide(direction = "next") {
   textEl.style.display = "";
   imgEl.style.display = "none";
   captionEl.style.display = "none";
-  // Words are wrapped in spans so the autoplay sweep can light them up live
-  textEl.textContent = "";
-  (slide.text || "").split(/(\s+)/).forEach(tok => {
-    if (!tok) return;
-    if (/^\s+$/.test(tok)) {
-      textEl.appendChild(document.createTextNode(tok));
-    } else {
-      const s = document.createElement("span");
-      s.className = "w";
-      s.textContent = tok;
-      textEl.appendChild(s);
-    }
-  });
-  
+  buildWords(textEl, slide.text);
+
   // Paragraph size styles
   let typeClass = "";
   if (slide.type === "h1") {
@@ -349,10 +522,13 @@ function renderSlide(direction = "next") {
   void textEl.offsetWidth;
 
   // Re-apply classes with the updated direction animation
-  textEl.className = `slide-text ${typeClass} ${direction === "prev" ? "animate-prev" : "animate-next"}`;
+  const readingClass = (isPlaying && readAlong && wordEls.length > 0) ? " reading" : "";
+  textEl.className = `slide-text ${typeClass} ${direction === "prev" ? "animate-prev" : "animate-next"}${readingClass}`;
 
   progressEl.innerText = `${currentIndex + 1} / ${slides.length}`;
-  
+
+  fitText();
+
   // Reset scroll to top on new slide
   if (containerEl) {
     containerEl.scrollTop = 0;
@@ -372,11 +548,15 @@ function handleKey(e) {
       renderSlide("prev");
       resetAutoplayTimer();
     }
-  } else if (e.key === "Escape") {
+  } else if (e.key === "Escape" || e.key === "f" || e.key === "F") {
     stopAutoplay();
     window.close();
   } else if (e.key === "p" || e.key === "P") {
     toggleAutoplay();
+  } else if (e.key === "r" || e.key === "R") {
+    toggleReadAlong();
+  } else if (e.key === "t" || e.key === "T") {
+    toggleTheme();
   }
 }
 

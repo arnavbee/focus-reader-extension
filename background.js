@@ -13,20 +13,49 @@ chrome.action.onClicked.addListener((tab) => {
     return;
   }
 
-  // Request extraction from the statically declared content script
-  chrome.tabs.sendMessage(tab.id, { action: "extract" }, (extractResponse) => {
-    if (chrome.runtime.lastError) {
-      console.warn(
-        "Focus Reader connection failed. Please refresh this tab to load the content script.",
-        chrome.runtime.lastError.message
-      );
-      return;
-    }
+  // Helper function to extract and open the viewport
+  function runExtraction() {
+    chrome.tabs.sendMessage(tab.id, { action: "extract" }, (extractResponse) => {
+      if (chrome.runtime.lastError) {
+        console.warn(
+          "Focus Reader extraction failed:",
+          chrome.runtime.lastError.message
+        );
+        return;
+      }
 
-    if (extractResponse && extractResponse.items) {
-      chrome.storage.local.set({ activeArticle: extractResponse }, () => {
-        chrome.tabs.create({ url: chrome.runtime.getURL("focus.html") });
-      });
+      if (extractResponse && extractResponse.items) {
+        chrome.storage.local.set({ activeArticle: extractResponse }, () => {
+          chrome.tabs.create({ url: chrome.runtime.getURL("focus.html") });
+        });
+      }
+    });
+  }
+
+  // Ping the content script first to see if it is already loaded
+  chrome.tabs.sendMessage(tab.id, { action: "ping" }, (response) => {
+    if (chrome.runtime.lastError || !response) {
+      // Content script is not running in this tab, inject it dynamically
+      chrome.scripting.executeScript(
+        {
+          target: { tabId: tab.id },
+          files: ["content.js"]
+        },
+        () => {
+          if (chrome.runtime.lastError) {
+            console.warn(
+              "Focus Reader failed to dynamically inject content script:",
+              chrome.runtime.lastError.message
+            );
+            return;
+          }
+          // Script successfully injected, proceed to extract content
+          runExtraction();
+        }
+      );
+    } else {
+      // Content script is already loaded and responded to ping
+      runExtraction();
     }
   });
 });

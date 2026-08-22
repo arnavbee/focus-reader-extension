@@ -1,11 +1,47 @@
+/* ── Theme tokens ─────────────────────────────────────────────
+   Two themes share one set of variables. "dark" is the original
+   reading room; "paper" is the warm off-white sheet, which is the
+   one the word-by-word highlight was designed against.
+   ------------------------------------------------------------ */
+:root {
+  --fr-bg: #000000;
+  --fr-fg: #e4e4e7;
+  --fr-fg-strong: #ffffff;
+  --fr-unread: #46464e;      /* words not reached yet */
+  --fr-quote: #a1a1aa;
+  --fr-rule: #27272a;
+  --fr-muted: #3f3f46;
+  --fr-muted-2: #52525b;
+  --fr-muted-3: #71717a;
+  --fr-body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --fr-serif: Georgia, Cambria, "Times New Roman", Times, serif;
+  --fr-body-weight: 300;
+}
+
+:root[data-theme="paper"] {
+  --fr-bg: #f7f6f3;
+  --fr-fg: #16130f;
+  --fr-fg-strong: #0b0906;
+  --fr-unread: #c2beb6;
+  --fr-quote: #5a544b;
+  --fr-rule: #ddd8cf;
+  --fr-muted: #a8a29a;
+  --fr-muted-2: #8a847b;
+  --fr-muted-3: #6f6a62;
+  /* Paper is a reading sheet, so it is serif all the way down. */
+  --fr-body-font: Georgia, Cambria, "Times New Roman", Times, serif;
+  --fr-body-weight: 400;
+}
+
 body, html {
   margin: 0;
   padding: 0;
-  background-color: #000;
-  color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--fr-bg);
+  color: var(--fr-fg);
+  font-family: var(--fr-body-font);
   overflow: hidden;
   height: 100%;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .viewport {
@@ -48,12 +84,11 @@ body, html {
   margin-top: 16px;
   text-align: center;
   font-size: 0.85rem;
-  color: #52525b;
+  color: var(--fr-muted-2);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-style: italic;
   letter-spacing: 0.02em;
 }
-
 
 /* Hide scrollbar for Chrome/Safari but retain scrollability */
 .slide-container::-webkit-scrollbar {
@@ -62,38 +97,64 @@ body, html {
 
 .slide-text {
   line-height: 1.6;
-  font-weight: 300;
-  color: #e4e4e7;
+  font-weight: var(--fr-body-weight);
+  color: var(--fr-fg);
   animation: fadeIn 0.15s ease-out forwards;
   width: 100%;
   box-sizing: border-box;
 }
 
+/* ── Read-along ───────────────────────────────────────────────
+   Words are always wrapped in .w. Only while `.reading` is on the
+   slide do the unread ones drop back; pausing removes the class and
+   the whole slide returns to full contrast.
+   ------------------------------------------------------------ */
+.slide-text .w {
+  transition: color 0.22s ease, opacity 0.22s ease;
+}
+
+.slide-text.reading .w {
+  color: var(--fr-unread);
+}
+
+.slide-text.reading .w.read {
+  color: var(--fr-fg);
+}
+
+.slide-text.reading.text-h1 .w.read,
+.slide-text.reading.text-h2 .w.read {
+  color: var(--fr-fg-strong);
+}
+
+.slide-text.reading.text-blockquote .w.read {
+  color: var(--fr-quote);
+}
+
 .text-h1 {
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-family: var(--fr-serif);
   font-size: 4.25rem;
   font-weight: 400;
   text-align: center;
   line-height: 1.25;
-  color: #ffffff;
+  color: var(--fr-fg-strong);
 }
 
 .text-h2 {
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-family: var(--fr-serif);
   font-size: 3.00rem;
   font-weight: 400;
   text-align: center;
   line-height: 1.3;
-  color: #f4f4f5;
+  color: var(--fr-fg-strong);
 }
 
 .text-h3 {
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-family: var(--fr-serif);
   font-size: 2.25rem;
   font-weight: 400;
   text-align: center;
   line-height: 1.3;
-  color: #e4e4e7;
+  color: var(--fr-fg);
 }
 
 .text-xlarge {
@@ -105,31 +166,66 @@ body, html {
 
 .text-medium {
   font-size: 2.5rem;
-  font-weight: 300;
+  font-weight: 400;
   text-align: center;
   line-height: 1.4;
 }
 
 .text-small {
   font-size: 1.75rem;
-  font-weight: 300;
+  font-weight: var(--fr-body-weight);
   text-align: left;
   line-height: 1.6;
   max-width: 760px;
   margin: 0 auto;
-  color: #e4e4e7;
+  color: var(--fr-fg);
+}
+
+/* Paper reads as a page, so body slides get left-aligned and a touch
+   tighter than the dark theme's centered poster look. */
+:root[data-theme="paper"] .text-xlarge,
+:root[data-theme="paper"] .text-medium,
+:root[data-theme="paper"] .text-h1,
+:root[data-theme="paper"] .text-h2,
+:root[data-theme="paper"] .text-h3 {
+  text-align: left;
+  letter-spacing: -0.018em;
+  line-height: 1.16;
+}
+
+:root[data-theme="paper"] .text-small {
+  text-align: left;
+  letter-spacing: -0.012em;
+  line-height: 1.24;
+  max-width: none;
+}
+
+:root[data-theme="paper"] .text-blockquote {
+  max-width: none;
+  line-height: 1.3;
+}
+
+/* The sheet runs wider and closer to the edges than the dark reading room,
+   because the type is sized to fill it rather than sit at a fixed scale. */
+:root[data-theme="paper"] .viewport {
+  padding: 0 5vw;
+}
+
+:root[data-theme="paper"] .slide-container {
+  max-width: 1180px;
+  padding: 40px 0;
 }
 
 .text-blockquote {
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-family: var(--fr-serif);
   font-size: 1.85rem;
   line-height: 1.6;
   text-align: left;
-  border-left: 4px solid #27272a;
+  border-left: 4px solid var(--fr-rule);
   padding-left: 32px;
   max-width: 680px;
   margin: 0 auto;
-  color: #a1a1aa;
+  color: var(--fr-quote);
   font-style: italic;
   white-space: pre-wrap; /* Preserve tweet line breaks if present */
 }
@@ -142,7 +238,8 @@ body, html {
   justify-content: space-between;
   align-items: center;
   font-size: 0.75rem;
-  color: #3f3f46;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--fr-muted);
   flex-shrink: 0;
 }
 
@@ -155,8 +252,8 @@ body, html {
 
 .play-btn {
   background: none;
-  border: 1px solid #27272a;
-  color: #71717a;
+  border: 1px solid var(--fr-rule);
+  color: var(--fr-muted-3);
   font-size: 0.7rem;
   width: 28px;
   height: 28px;
@@ -171,13 +268,14 @@ body, html {
 }
 
 .play-btn:hover {
-  border-color: #52525b;
-  color: #a1a1aa;
+  border-color: var(--fr-muted-2);
+  color: var(--fr-fg);
 }
 
-.play-btn.playing {
-  border-color: #e4e4e7;
-  color: #e4e4e7;
+.play-btn.playing,
+.play-btn.active {
+  border-color: var(--fr-fg);
+  color: var(--fr-fg);
 }
 
 .speed-wrap {
@@ -198,7 +296,7 @@ body, html {
   appearance: none;
   width: 90px;
   height: 2px;
-  background: #27272a;
+  background: var(--fr-rule);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -209,20 +307,20 @@ body, html {
   appearance: none;
   width: 10px;
   height: 10px;
-  background: #52525b;
+  background: var(--fr-muted-2);
   border-radius: 50%;
   cursor: pointer;
   transition: background 0.2s, transform 0.15s;
 }
 
 #speed-slider:hover::-webkit-slider-thumb {
-  background: #e4e4e7;
+  background: var(--fr-fg);
   transform: scale(1.3);
 }
 
 #wpm-label {
   font-size: 0.7rem;
-  color: #3f3f46;
+  color: var(--fr-muted);
   white-space: nowrap;
   min-width: 52px;
 }
@@ -234,7 +332,7 @@ body, html {
   left: 0;
   width: 0%;
   height: 1.5px;
-  background: #3f3f46;
+  background: var(--fr-muted);
   z-index: 50;
 }
 
@@ -248,6 +346,11 @@ body, html {
 
 .animate-prev {
   animation: slideInPrev 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideInNext {
@@ -276,18 +379,7 @@ body, html {
   }
 }
 
-/* ── Live teleprompter sweep (autoplay) ───────────────────── */
-.w {
-  transition: color 0.14s linear, text-shadow 0.14s linear;
-}
-.w.unread {
-  color: #26262c;
-  text-shadow: none;
-}
-.w.read {
-  color: #ffffff;
-}
-.w.now {
-  color: #ffffff;
-  text-shadow: 0 0 26px rgba(255, 255, 255, 0.35);
+@media (prefers-reduced-motion: reduce) {
+  .slide-text .w { transition: none; }
+  .animate-next, .animate-prev { animation: none; }
 }
