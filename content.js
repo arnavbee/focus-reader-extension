@@ -1,22 +1,98 @@
+// Tags that imply a line break around their text when we rebuild text by hand
+const BLOCK_TAGS = new Set([
+  "address", "article", "aside", "blockquote", "br", "div", "dd", "dl", "dt",
+  "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header",
+  "hr", "li", "ol", "p", "pre", "section", "table", "td", "th", "tr", "ul"
+]);
+
+// Walk the tree and concatenate text, skipping only the excluded elements themselves.
+// Returns untrimmed text so callers keep the spacing that sits between inline tags.
+function collectText(el, excludeSelector) {
+  let text = "";
+  for (const child of el.childNodes) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      text += child.textContent;
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      // Skip the excluded element itself, but still descend into wrappers that merely
+      // contain one, otherwise the whole wrapper's text is lost
+      if (child.matches(excludeSelector)) continue;
+
+      const isBlock = BLOCK_TAGS.has(child.tagName.toLowerCase());
+      if (isBlock && text && !/\s$/.test(text)) text += "\n";
+      text += collectText(child, excludeSelector);
+      if (isBlock && text && !/\s$/.test(text)) text += "\n";
+    }
+  }
+  return text;
+}
+
 // Extract text of an element excluding any child composite elements (to avoid duplicate text in slides)
 function getCleanText(el, excludeSelector) {
   // If the element doesn't contain any nested composite elements, use live innerText directly
   if (!el.querySelector(excludeSelector)) {
     return el.innerText.trim();
   }
-  // Otherwise, perform recursive node text extraction to avoid detached innerText issues
-  let text = "";
-  for (const child of el.childNodes) {
-    if (child.nodeType === Node.TEXT_NODE) {
-      text += child.textContent;
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      if (child.matches(excludeSelector) || child.querySelector(excludeSelector)) {
-        continue;
-      }
-      text += getCleanText(child, excludeSelector);
+  // Otherwise, rebuild the text by hand so the nested composite can be left out
+  return collectText(el, excludeSelector)
+    .replace(/[ \t]+/g, " ")
+    .replace(/ ?\n ?/g, "\n")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+// The number a list item actually shows, honouring <ol start>, <li value> and <ol reversed>
+function getListOrdinal(li, ol) {
+  const siblings = Array.from(ol.querySelectorAll(":scope > li"));
+  const reversed = ol.hasAttribute("reversed");
+  const start = parseInt(ol.getAttribute("start"), 10);
+  let n = Number.isNaN(start) ? (reversed ? siblings.length : 1) : start;
+
+  for (const sibling of siblings) {
+    const value = parseInt(sibling.getAttribute("value"), 10);
+    if (!Number.isNaN(value)) n = value;
+    if (sibling === li) return n;
+    n += reversed ? -1 : 1;
+  }
+  return n;
+}
+
+// A src that is only standing in until the real image is lazy-loaded
+function isPlaceholderSrc(src) {
+  if (!src) return true;
+  if (src.startsWith("data:")) return true;
+  return /\b(blank|spacer|placeholder|transparent|lazy|loading)\b/i.test(src);
+}
+
+// Resolve the image a reader should actually see: the loaded src when it is real,
+// otherwise whichever lazy-loading attribute holds the true URL
+function getImageSource(imgEl) {
+  const current = imgEl.currentSrc || imgEl.getAttribute("src");
+  if (!isPlaceholderSrc(current)) {
+    return { src: imgEl.src || current, loaded: true };
+  }
+
+  const srcset = imgEl.getAttribute("srcset") || imgEl.getAttribute("data-srcset");
+  const fromSrcset = srcset ? srcset.split(",")[0].trim().split(/\s+/)[0] : null;
+
+  const candidates = [
+    imgEl.getAttribute("data-src"),
+    imgEl.getAttribute("data-lazy-src"),
+    imgEl.getAttribute("data-original"),
+    imgEl.dataset ? imgEl.dataset.srcLarge : null,
+    fromSrcset
+  ];
+
+  for (const candidate of candidates) {
+    if (isPlaceholderSrc(candidate)) continue;
+    try {
+      // Lazy attributes are often relative to the page
+      return { src: new URL(candidate, document.baseURI).href, loaded: false };
+    } catch (e) {
+      return { src: candidate, loaded: false };
     }
   }
-  return text.trim();
+
+  return current ? { src: imgEl.src || current, loaded: true } : { src: null, loaded: true };
 }
 
 function extractArticle() {
@@ -82,11 +158,12 @@ function extractArticle() {
       const imgEl = tagName === "figure" ? el.querySelector("img") : el;
       if (!imgEl) continue;
 
-      const src = imgEl.src || imgEl.dataset.src || imgEl.getAttribute("data-lazy-src");
+      const { src, loaded } = getImageSource(imgEl);
       if (!src) continue;
 
-      // Skip tiny images (icons, avatars — under 100px in natural size)
-      if (imgEl.naturalWidth > 0 && imgEl.naturalWidth < 100) continue;
+      // Skip tiny images (icons, avatars — under 100px in natural size). A lazy image
+      // has not loaded yet, so its naturalWidth is the placeholder's and tells us nothing
+      if (loaded && imgEl.naturalWidth > 0 && imgEl.naturalWidth < 100) continue;
 
       const caption = el.querySelector("figcaption")?.innerText.trim() ||
                       imgEl.alt?.trim() || "";
@@ -106,10 +183,8 @@ function extractArticle() {
     } else if (tagName === "li") {
       const parent = el.parentElement;
       if (parent && parent.tagName.toLowerCase() === "ol") {
-        const siblings = Array.from(parent.querySelectorAll(':scope > li'));
-        const index = siblings.indexOf(el) + 1;
         seenTexts.add(text);
-        items.push({ type: "li", text: `${index}. ${text}` });
+        items.push({ type: "li", text: `${getListOrdinal(el, parent)}. ${text}` });
         continue;
       } else {
         seenTexts.add(text);

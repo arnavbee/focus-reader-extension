@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Focus Reader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert any long-form article or document into a clean, slide-by-slide Focus Mode interface.",
   "permissions": [
     "activeTab",
