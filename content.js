@@ -63,6 +63,15 @@ function isPlaceholderSrc(src) {
   return /\b(blank|spacer|placeholder|transparent|lazy|loading)\b/i.test(src);
 }
 
+// The URL of the first candidate in a srcset. Splitting the whole list on "," is
+// wrong: Cloudinary and imgix put commas inside the path (.../w_400,h_300/pic.jpg),
+// so that returns a truncated, broken URL. The first candidate is simply the leading
+// run of non-whitespace, minus the comma that ends it when it carries no descriptor.
+function firstSrcsetUrl(srcset) {
+  const match = /^\s*([^\s]+)/.exec(srcset || "");
+  return match ? match[1].replace(/,$/, "") : null;
+}
+
 // Resolve the image a reader should actually see: the loaded src when it is real,
 // otherwise whichever lazy-loading attribute holds the true URL
 function getImageSource(imgEl) {
@@ -72,7 +81,7 @@ function getImageSource(imgEl) {
   }
 
   const srcset = imgEl.getAttribute("srcset") || imgEl.getAttribute("data-srcset");
-  const fromSrcset = srcset ? srcset.split(",")[0].trim().split(/\s+/)[0] : null;
+  const fromSrcset = firstSrcsetUrl(srcset);
 
   const candidates = [
     imgEl.getAttribute("data-src"),
