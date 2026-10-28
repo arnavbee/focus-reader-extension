@@ -139,11 +139,17 @@ function extractArticle() {
       continue;
     }
 
+    const tagName = el.tagName.toLowerCase();
+    const isMedia = tagName === "figure" || tagName === "img";
+
     // Check if the current element is a child inside a normal semantic block (like a paragraph inside a list item)
-    // If it is, and this element is NOT a composite block itself, we skip it to prevent double rendering
+    // If it is, and this element is NOT a composite block itself, we skip it to prevent double rendering.
+    // Media is exempt: an image carries no text, so the block around it cannot be a duplicate of it.
+    // WordPress and Substack both wrap a standalone image in its own <p> or <li>, and that wrapper is
+    // then dropped by the length filter below, so skipping here lost the image from the deck entirely.
     const semanticSelector = 'h1, h2, h3, p, li';
     const parentSemantic = el.parentElement ? el.parentElement.closest(semanticSelector) : null;
-    if (parentSemantic && !isCompositeElement) {
+    if (parentSemantic && !isCompositeElement && !isMedia) {
       continue;
     }
 
@@ -155,12 +161,11 @@ function extractArticle() {
     const text = getCleanText(el, compositeSelector);
 
     // Skip duplicate texts to prevent repeating desktop/mobile templates or TOC headers
-    if (seenTexts.has(text)) continue;
-
-    const tagName = el.tagName.toLowerCase();
+    // (an image's own text is its caption, which is allowed to be empty or to repeat)
+    if (text && seenTexts.has(text) && !isMedia) continue;
 
     // Handle images and figures as full-screen image slides
-    if (tagName === "figure" || tagName === "img") {
+    if (isMedia) {
       // Skip img elements nested inside a figure (the figure itself will be processed)
       if (tagName === "img" && el.closest("figure")) continue;
 
@@ -191,6 +196,9 @@ function extractArticle() {
       type = "blockquote";
     } else if (tagName === "li") {
       const parent = el.parentElement;
+      // A list item holding only an image has no text of its own; the image is emitted
+      // as its own slide, so rendering the item too would add a bullet with nothing after it
+      if (!text) continue;
       if (parent && parent.tagName.toLowerCase() === "ol") {
         seenTexts.add(text);
         items.push({ type: "li", text: `${getListOrdinal(el, parent)}. ${text}` });
