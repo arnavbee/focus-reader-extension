@@ -104,9 +104,39 @@ function getImageSource(imgEl) {
   return current ? { src: imgEl.src || current, loaded: true } : { src: null, loaded: true };
 }
 
+// Containers that hold the article itself. A <header> inside one of these is the
+// article's own masthead, not the site banner.
+const ARTICLE_ROOTS = 'article, main, [role="main"], .post-content, .article-content';
+
+// Is this element sitting in site chrome (the page banner, a sidebar, the footer)
+// rather than in the article? An <article><header> is not site chrome.
+function isSiteChrome(el, excludeSelector) {
+  const excluded = el.closest(excludeSelector);
+  if (!excluded) return false;
+  if (excluded.tagName.toLowerCase() === "header" && excluded.closest(ARTICLE_ROOTS)) {
+    return false;
+  }
+  return true;
+}
+
+// The headline. Taking the first <h1> on the page gets the site name instead of the
+// title on every blog that puts its logo in an <h1> in the page banner, and on any
+// page whose first <h1> is screen-reader-only ("Main navigation"). So prefer the
+// first non-empty <h1> inside the article container, skip the ones in site chrome,
+// and only fall back to document.title when the page has no usable <h1> at all.
+function getArticleTitle(container, excludeSelector) {
+  for (const root of new Set([container, document.body])) {
+    if (!root) continue;
+    for (const h1 of root.querySelectorAll("h1")) {
+      if (isSiteChrome(h1, excludeSelector)) continue;
+      const text = h1.innerText.trim();
+      if (text) return text;
+    }
+  }
+  return (document.title || "").trim();
+}
+
 function extractArticle() {
-  const title = document.querySelector('h1')?.innerText || document.title;
-  
   // Find the primary article container to narrow down search space
   const container = document.querySelector('article') || 
                     document.querySelector('main') || 
@@ -117,6 +147,8 @@ function extractArticle() {
 
   // Clutter selectors to filter out (sidebars, footers, comments, recommendation grids)
   const excludeSelector = 'footer, header, aside, nav, .comments, .comment, .reply, .recommendations, .related, .sidebar, #comments, .post-footer, .subscription-widget-wrap, .comments-section, .post-comments';
+
+  const title = getArticleTitle(container, excludeSelector);
 
   // Selectors for composite blocks that should be read as a single unified slide
   const compositeSelector = 'blockquote, [class*="tweet" i], [class*="twitter" i], [class*="embed" i]';
