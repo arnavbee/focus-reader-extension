@@ -7,8 +7,8 @@
   --fr-bg: #000000;
   --fr-fg: #e4e4e7;
   --fr-fg-strong: #ffffff;
-  --fr-unread: #46464e;      /* words not reached yet */
-  --fr-read: #9a9aa3;        /* words already passed */
+  --fr-unread: #5c5c66;      /* words not reached yet */
+  --fr-read: #9a9aa3;        /* words already passed (paper only, see below) */
   --fr-quote: #a1a1aa;
   --fr-rule: #27272a;
   --fr-muted: #3f3f46;
@@ -52,14 +52,14 @@ body, html {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  padding: 0 10vw;
+  padding: 0 3vw;
   box-sizing: border-box;
 }
 
 .slide-container {
   flex-grow: 1;
   width: 100%;
-  max-width: 800px;
+  max-width: none;
   overflow-y: auto;
   padding: 40px 0;
   box-sizing: border-box;
@@ -121,7 +121,13 @@ body, html {
   color: var(--fr-unread);
 }
 
-.slide-text.reading .w.read {
+/* Dark room: every spoken word goes to full white and stays there, like
+   a karaoke lyric line. Paper keeps its own subtler read/unread brown. */
+:root[data-theme="dark"] .slide-text.reading .w.read {
+  color: var(--fr-fg-strong);
+}
+
+:root[data-theme="paper"] .slide-text.reading .w.read {
   color: var(--fr-read);
 }
 
@@ -144,71 +150,77 @@ body, html {
 .text-h1 {
   font-family: var(--fr-serif);
   font-size: 4.25rem;
-  font-weight: 400;
-  text-align: center;
-  line-height: 1.25;
+  font-weight: 500;
+  text-align: left;
+  letter-spacing: -0.018em;
+  line-height: 1.16;
   color: var(--fr-fg-strong);
 }
 
 .text-h2 {
   font-family: var(--fr-serif);
   font-size: 3.00rem;
-  font-weight: 400;
-  text-align: center;
-  line-height: 1.3;
+  font-weight: 500;
+  text-align: left;
+  letter-spacing: -0.018em;
+  line-height: 1.16;
   color: var(--fr-fg-strong);
 }
 
 .text-h3 {
   font-family: var(--fr-serif);
   font-size: 2.25rem;
-  font-weight: 400;
-  text-align: center;
-  line-height: 1.3;
+  font-weight: 500;
+  text-align: left;
+  letter-spacing: -0.018em;
+  line-height: 1.16;
   color: var(--fr-fg);
 }
 
 .text-xlarge {
+  font-family: var(--fr-serif);
   font-size: 3.5rem;
-  font-weight: 400;
-  text-align: center;
-  line-height: 1.4;
-}
-
-.text-medium {
-  font-size: 2.5rem;
-  font-weight: 400;
-  text-align: center;
-  line-height: 1.4;
-}
-
-.text-small {
-  font-size: 1.75rem;
-  font-weight: var(--fr-body-weight);
-  text-align: left;
-  line-height: 1.6;
-  max-width: 760px;
-  margin: 0 auto;
-  color: var(--fr-fg);
-}
-
-/* Paper reads as a page, so body slides get left-aligned and a touch
-   tighter than the dark theme's centered poster look. */
-:root[data-theme="paper"] .text-xlarge,
-:root[data-theme="paper"] .text-medium,
-:root[data-theme="paper"] .text-h1,
-:root[data-theme="paper"] .text-h2,
-:root[data-theme="paper"] .text-h3 {
+  font-weight: 500;
   text-align: left;
   letter-spacing: -0.018em;
   line-height: 1.16;
 }
 
-:root[data-theme="paper"] .text-small {
+.text-medium {
+  font-family: var(--fr-serif);
+  font-size: 2.5rem;
+  font-weight: 500;
   text-align: left;
+  letter-spacing: -0.018em;
+  line-height: 1.16;
+}
+
+.text-small {
+  font-family: var(--fr-serif);
+  font-size: 2.25rem;
+  font-weight: 500;
+  text-align: left;
+  letter-spacing: -0.018em;
+  line-height: 1.16;
+  max-width: none;
+  color: var(--fr-fg);
+}
+
+/* Paper keeps its original, lighter weight — the bolder karaoke poster
+   look above is a dark-theme-only change. Body copy also keeps its own
+   slightly looser tracking/leading. */
+:root[data-theme="paper"] .text-h1,
+:root[data-theme="paper"] .text-h2,
+:root[data-theme="paper"] .text-h3,
+:root[data-theme="paper"] .text-xlarge,
+:root[data-theme="paper"] .text-medium,
+:root[data-theme="paper"] .text-small {
+  font-weight: 400;
+}
+
+:root[data-theme="paper"] .text-small {
   letter-spacing: -0.012em;
   line-height: 1.24;
-  max-width: none;
 }
 
 :root[data-theme="paper"] .text-blockquote {
@@ -216,17 +228,7 @@ body, html {
   line-height: 1.3;
 }
 
-/* The sheet is full bleed: no column cap and only enough gutter to keep
-   descenders off the glass. The dark room keeps its 800px measure, because
-   its type sits at a fixed scale and would run to unreadable line lengths;
-   paper solves its own size against the height, so a wider box just buys
-   more words per line instead of a longer eye travel at the same size. */
-:root[data-theme="paper"] .viewport {
-  padding: 0 3vw;
-}
-
 :root[data-theme="paper"] .slide-container {
-  max-width: none;
   padding: 40px 0;
 }
 

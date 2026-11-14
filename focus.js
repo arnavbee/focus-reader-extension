@@ -34,10 +34,10 @@ function applyTheme() {
 }
 
 // ── Fill-the-sheet type ──────────────────────────────────────
-// Paper theme sets type as large as the slide will allow rather than at a
-// fixed scale, so a short line lands like the poster it is and a dense one
-// steps down only as far as it has to. Binary search on font size, nine
-// passes, which settles well inside a frame.
+// Both themes set type as large as the slide will allow rather than at a
+// fixed scale, so a short line lands like a karaoke-lyric poster and a
+// dense one steps down only as far as it has to. Binary search on font
+// size, seven passes, which settles well inside a frame.
 const FIT_CEILING = {
   "text-h1": 132,
   "text-h2": 120,
@@ -60,7 +60,7 @@ function fitText() {
   const containerEl = document.getElementById("slide-container");
   if (!textEl || !containerEl) return;
 
-  if (theme !== "paper" || textEl.style.display === "none") {
+  if (textEl.style.display === "none") {
     textEl.style.fontSize = "";
     return;
   }
